@@ -15,21 +15,21 @@ export class SaleService {
 
         const getUser: any = await this.userService.getUserById(userId);
 
-        if (getUser.role === 'ADMIN') {
-            const product = await this.productService.getProductById(productId);
-            const createdSale = await this.saleRepository.createSale(createSaleDto, product, userId, session);
-
-            const updateProductDto: UpdateProductDto = {
-                id: product._id,
-                status: 'SOLD',
-                clientId: clientId,
-            };
-            await this.productService.updateProduct(updateProductDto, session);
-
-            return createdSale;
-        } else {
+        if (getUser.role !== 'ADMIN') {
             throw new UnauthorizedException('Incorrect Role');
         }
+
+        const product = await this.productService.getProductById(productId);
+        const createdSale = await this.saleRepository.createSale(createSaleDto, product, userId, session);
+
+        const updateProductDto: UpdateProductDto = {
+            id: product._id,
+            status: 'SOLD',
+            clientId: clientId,
+        };
+        await this.productService.updateProduct(updateProductDto, session);
+
+        return createdSale;
     }
 
     async getSaleById(saleId: MongooseSchema.Types.ObjectId) {
