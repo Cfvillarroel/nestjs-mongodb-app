@@ -1,18 +1,28 @@
-import { Body, Controller, Get, HttpStatus, Param, Post, Query, Res } from '@nestjs/common';
-import { Schema as MongooseSchema } from 'mongoose';
-
+import { BadRequestException, Body, Controller, Get, HttpStatus, Param, Post, Query, Res } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection, Schema as MongooseSchema } from 'mongoose';
 import { GetQueryDto } from '../../dto/getQueryDto';
 import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/createClient.dto';
 
 @Controller('client')
 export class ClientController {
-    constructor(private clientService: ClientService) {}
+    constructor(@InjectConnection() private readonly mongoConnection: Connection, private clientService: ClientService) {}
 
     @Post('/createClient')
     async createClient(@Body() createClientDto: CreateClientDto, @Res() res: any) {
-        const newClient = await this.clientService.createClient(createClientDto);
-        return res.status(HttpStatus.OK).send(newClient);
+        const session = await this.mongoConnection.startSession();
+        session.startTransaction();
+        try {
+            const newClient = await this.clientService.createClient(createClientDto);
+            await session.commitTransaction();
+            return res.status(HttpStatus.OK).send(newClient);
+        } catch (error) {
+            await session.abortTransaction();
+            throw new BadRequestException(error);
+        } finally {
+            session.endSession();
+        }
     }
 
     @Get('/getClients')

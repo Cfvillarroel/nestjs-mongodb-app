@@ -1,6 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { Schema as MongooseSchema } from 'mongoose';
-
 import { GetQueryDto } from '../../dto/getQueryDto';
 import { ClientRepository } from '../../repositories/client.repository';
 import { UserService } from '../user/user.service';

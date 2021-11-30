@@ -1,7 +1,6 @@
 import { ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Schema as MongooseSchema } from 'mongoose';
-
 import { GetQueryDto } from '../dto/getQueryDto';
 import { ResponseDto } from '../dto/response.dto';
 import { Client } from '../entities/client.entity';
@@ -14,23 +13,23 @@ export class ClientRepository {
     ) {}
 
     async createClient(createClientDto: CreateClientDto) {
-        const clientExists: any = await this.getClientByName(createClientDto.name);
+        let client = await this.getClientByName(createClientDto.name);
 
-        if (!clientExists.ok) {
-            const newClient = new this.clientModel({
-                name: createClientDto.name,
-                contactNumber: createClientDto.contactNumber,
-                user: createClientDto.userId,
-            });
+        if (client) {
+            throw new ConflictException('Client Already Exists!');
+        }
 
-            try {
-                const createdClient = await newClient.save();
-                return createdClient;
-            } catch (error) {
-                throw new InternalServerErrorException('Error al consultar la BD', error);
-            }
-        } else {
-            throw new ConflictException('El cliente ya existe');
+        client = new this.clientModel({
+            name: createClientDto.name,
+            contactNumber: createClientDto.contactNumber,
+            user: createClientDto.userId,
+        });
+
+        try {
+            const createdClient = await client.save();
+            return createdClient;
+        } catch (error) {
+            throw new InternalServerErrorException('Error al consultar la BD', error);
         }
     }
 
@@ -93,12 +92,15 @@ export class ClientRepository {
         }
     }
 
-    async getClientByName(name: string) {
+    async getClientByName(name: string): Promise<Client> {
+        let client;
+
         try {
-            const client = await this.clientModel.find({ name });
-            return client;
+            client = await this.clientModel.find({ name });
         } catch (error) {
-            throw new InternalServerErrorException('Error al consultar la BD', error);
+            throw new InternalServerErrorException('Error connecting to MongoDB', error);
         }
+
+        return client;
     }
 }

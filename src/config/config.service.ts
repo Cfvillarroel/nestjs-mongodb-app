@@ -23,7 +23,7 @@ export class ConfigService {
     public async getMongoConfig() {
         return {
             uri:
-                'mongodb://' +
+                'mongodb+srv://' +
                 this.get('MONGO_USER') +
                 ':' +
                 this.get('MONGO_PASSWORD') +
