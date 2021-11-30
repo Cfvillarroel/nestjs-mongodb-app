@@ -1,49 +1,61 @@
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Schema as MongooseSchema } from 'mongoose';
-
+import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../modules/user/dto/createUser.dto';
 
 export class UserRepository {
     constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {}
 
-    async createUser(createUserDto: CreateUserDto) {
-        const userExists: any = await this.getUserByEmail(createUserDto.email);
+    async createUser(createUserDto: CreateUserDto, session: ClientSession) {
+        let user = await this.getUserByEmail(createUserDto.email);
 
-        if (userExists.length === 0) {
-            const newUser = new this.userModel({
-                name: createUserDto.name,
-                email: createUserDto.email,
-                role: createUserDto.role,
-            });
-
-            try {
-                const createdUser = await newUser.save();
-                return createdUser;
-            } catch (error) {
-                throw new InternalServerErrorException(error);
-            }
-        } else {
-            throw new ConflictException('User Exists');
+        if (user) {
+            throw new ConflictException('User already exists');
         }
+
+        user = new this.userModel({
+            name: createUserDto.name,
+            email: createUserDto.email,
+            role: createUserDto.role,
+        });
+
+        try {
+            user = await user.save({ session });
+        } catch (error) {
+            throw new InternalServerErrorException(error);
+        }
+
+        if (!user) {
+            throw new ConflictException('User not created');
+        }
+
+        return user;
     }
 
     async getUserById(id: MongooseSchema.Types.ObjectId) {
+        let user;
         try {
-            const user = await this.userModel.findById({ _id: id });
-            return user;
+            user = await this.userModel.findById({ _id: id });
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        return user;
     }
 
     async getUserByEmail(email: string) {
+        let user;
         try {
-            const user = await this.userModel.find({ email }, 'name email img role').exec();
-            return user;
+            user = await this.userModel.findOne({ email }, 'name email img role').exec();
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        return user;
     }
 }

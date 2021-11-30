@@ -1,18 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Schema as MongooseSchema } from 'mongoose';
+import { ClientSession, Schema as MongooseSchema } from 'mongoose';
 import { GetQueryDto } from 'src/dto/getQueryDto';
-
 import { ProductRepository } from '../../repositories/product.repository';
-import { UserService } from '../user/user.service';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
 
 @Injectable()
 export class ProductService {
-    constructor(private productRepository: ProductRepository, private readonly userService: UserService) {}
+    constructor(private productRepository: ProductRepository) {}
 
-    async createProduct(createProductDto: CreateProductDto) {
-        return await this.productRepository.createProduct(createProductDto);
+    async createProduct(createProductDto: CreateProductDto, session: ClientSession) {
+        return await this.productRepository.createProduct(createProductDto, session);
     }
 
     async getProductById(productId: MongooseSchema.Types.ObjectId) {
@@ -23,8 +21,7 @@ export class ProductService {
         return await this.productRepository.getProducts(getQueryDto);
     }
 
-    async updateProduct(updateProductDto: UpdateProductDto) {
-        const product = await this.productRepository.updateProduct(updateProductDto);
-        return product;
+    async updateProduct(updateProductDto: UpdateProductDto, session: ClientSession) {
+        return await this.productRepository.updateProduct(updateProductDto, session);
     }
 }
