@@ -6,10 +6,10 @@ import { UserService } from './user.service';
 
 @Controller('user')
 export class UserController {
-    constructor(private userService: UserService) {}
+    constructor(@InjectConnection() private readonly mongoConnection: Connection, private userService: UserService) {}
 
     @Post('/createUser')
-    async createUser(@InjectConnection() private readonly mongoConnection: Connection, @Body() createUserDto: CreateUserDto, @Res() res: any) {
+    async createUser(@Body() createUserDto: CreateUserDto, @Res() res: any) {
         const session = await this.mongoConnection.startSession();
         session.startTransaction();
         try {

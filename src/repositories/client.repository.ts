@@ -1,6 +1,6 @@
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
 import { GetQueryDto } from '../dto/getQueryDto';
 import { ResponseDto } from '../dto/response.dto';
 import { Client } from '../entities/client.entity';
@@ -12,7 +12,7 @@ export class ClientRepository {
         private readonly clientModel: Model<Client>,
     ) {}
 
-    async createClient(createClientDto: CreateClientDto) {
+    async createClient(createClientDto: CreateClientDto, session: ClientSession) {
         let client = await this.getClientByName(createClientDto.name);
 
         if (client) {
@@ -26,15 +26,15 @@ export class ClientRepository {
         });
 
         try {
-            const createdClient = await client.save();
-            return createdClient;
+            client = await client.save({ session });
         } catch (error) {
             throw new InternalServerErrorException('Error al consultar la BD', error);
         }
+
+        return client;
     }
 
     async getClients(query: GetQueryDto) {
-        // Paginar resultado
         let from = query.from || 0;
         from = Number(from);
 
@@ -83,13 +83,18 @@ export class ClientRepository {
     }
 
     async getClientById(id: MongooseSchema.Types.ObjectId) {
+        let client;
         try {
-            const client = await this.clientModel.findById(id).exec();
-
-            return client;
+            client = await this.clientModel.findById(id).exec();
         } catch (error) {
             throw new InternalServerErrorException('No existe el registro con id' + id, error);
         }
+
+        if (!client) {
+            throw new NotFoundException('The client with this id does not exist');
+        }
+
+        return client;
     }
 
     async getClientByName(name: string): Promise<Client> {

@@ -22,6 +22,7 @@
     },
     "dependencies": {
         "@nestjs/core": "^8.2.3",
+        "@nestjs/mapped-types": "^1.0.0",
         "@nestjs/mongoose": "^9.0.1",
         "@nestjs/platform-express": "^8.2.3",
         "mongoose": "^6.0.14",

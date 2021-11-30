@@ -1,7 +1,6 @@
-import { InternalServerErrorException } from '@nestjs/common';
+import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Schema as MongooseSchema } from 'mongoose';
-
+import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
 import { GetQueryDto } from '../dto/getQueryDto';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../modules/product/dto/createProduct.dto';
@@ -10,23 +9,23 @@ import { UpdateProductDto } from '../modules/product/dto/updateProduct.dto';
 export class ProductRepository {
     constructor(@InjectModel(Product.name) private readonly productModel: Model<Product>) {}
 
-    async createProduct(createProductDto: CreateProductDto) {
-        const newProduct = new this.productModel({
+    async createProduct(createProductDto: CreateProductDto, session: ClientSession) {
+        let product = new this.productModel({
             user: createProductDto.userId,
             productName: createProductDto.productName,
             status: 'CREATED',
             client: null,
         });
         try {
-            const createdProduct = await newProduct.save();
-
-            return createdProduct;
+            product = await product.save({ session });
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        return product;
     }
 
-    async updateProduct(updateProduct: UpdateProductDto) {
+    async updateProduct(updateProduct: UpdateProductDto, session: ClientSession) {
         const actualDate = new Date();
         actualDate.toUTCString();
 
@@ -36,20 +35,26 @@ export class ProductRepository {
             updatedAt: actualDate,
         };
 
+        let product;
         try {
-            const product = await this.productModel
+            product = await this.productModel
                 .findOneAndUpdate({ _id: updateProduct.id }, updateData, {
                     new: true,
                 })
+                .session(session)
                 .exec();
-            return product;
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        if (!product) {
+            throw new ConflictException('Error trying to update product');
+        }
+
+        return product;
     }
 
     async getProducts(query: GetQueryDto) {
-        // Paginar resultado
         let from = query.from || 0;
         from = Number(from);
 
@@ -100,12 +105,17 @@ export class ProductRepository {
     }
 
     async getProductById(id: MongooseSchema.Types.ObjectId) {
+        let product;
         try {
-            const product = await this.productModel.findById(id).exec();
-
-            return product;
+            product = await this.productModel.findById(id).exec();
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        if (!product) {
+            throw new NotFoundException('The product with this id does not exist');
+        }
+
+        return product;
     }
 }
