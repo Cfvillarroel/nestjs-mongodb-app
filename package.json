@@ -25,6 +25,8 @@
         "@nestjs/mapped-types": "^1.0.0",
         "@nestjs/mongoose": "^9.0.1",
         "@nestjs/platform-express": "^8.2.3",
+        "class-validator": "^0.13.2",
+        "dotenv": "^10.0.0",
         "mongoose": "^6.0.14",
         "reflect-metadata": "^0.1.13",
         "rimraf": "^3.0.2",

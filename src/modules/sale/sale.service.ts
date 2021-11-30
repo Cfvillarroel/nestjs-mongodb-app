@@ -1,6 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Schema as MongooseSchema } from 'mongoose';
-
+import { ClientSession, Schema as MongooseSchema } from 'mongoose';
 import { SaleRepository } from '../../repositories/sale.repository';
 import { UpdateProductDto } from '../product/dto/updateProduct.dto';
 import { ProductService } from '../product/product.service';
@@ -9,27 +8,23 @@ import { CreateSaleDto } from './dto/createSale.dto';
 
 @Injectable()
 export class SaleService {
-    constructor(
-        private saleRepository: SaleRepository,
-        private readonly userService: UserService,
-        private readonly productService: ProductService,
-    ) {}
+    constructor(private saleRepository: SaleRepository, private readonly userService: UserService, private readonly productService: ProductService) {}
 
-    async createSale(createSaleDto: CreateSaleDto) {
+    async createSale(createSaleDto: CreateSaleDto, session: ClientSession) {
         const { userId, productId, clientId } = createSaleDto;
 
         const getUser: any = await this.userService.getUserById(userId);
 
         if (getUser.role === 'ADMIN') {
             const product = await this.productService.getProductById(productId);
-            const createdSale = await this.saleRepository.createSale(createSaleDto, product, userId);
+            const createdSale = await this.saleRepository.createSale(createSaleDto, product, userId, session);
 
             const updateProductDto: UpdateProductDto = {
                 id: product._id,
                 status: 'SOLD',
                 clientId: clientId,
             };
-            await this.productService.updateProduct(updateProductDto);
+            await this.productService.updateProduct(updateProductDto, session);
 
             return createdSale;
         } else {
@@ -38,12 +33,10 @@ export class SaleService {
     }
 
     async getSaleById(saleId: MongooseSchema.Types.ObjectId) {
-        const sale: any = await this.saleRepository.getSaleById(saleId);
-        return sale;
+        return await this.saleRepository.getSaleById(saleId);
     }
 
     async getSales(query: { from: number; limit: number }) {
-        const sales = await this.saleRepository.getSales(query);
-        return sales;
+        return await this.saleRepository.getSales(query);
     }
 }

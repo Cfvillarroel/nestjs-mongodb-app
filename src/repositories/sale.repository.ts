@@ -1,7 +1,6 @@
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Schema as MongooseSchema } from 'mongoose';
-
+import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
 import { Product } from '../entities/product.entity';
 import { Sale } from '../entities/sale.entity';
 import { CreateSaleDto } from '../modules/sale/dto/createSale.dto';
@@ -9,8 +8,8 @@ import { CreateSaleDto } from '../modules/sale/dto/createSale.dto';
 export class SaleRepository {
     constructor(@InjectModel(Sale.name) private readonly saleModel: Model<Sale>) {}
 
-    async createSale(createSaleDto: CreateSaleDto, product: Product, userId: MongooseSchema.Types.ObjectId) {
-        const newSale = new this.saleModel({
+    async createSale(createSaleDto: CreateSaleDto, product: Product, userId: MongooseSchema.Types.ObjectId, session: ClientSession) {
+        let sale = new this.saleModel({
             user: userId,
             product: product._id,
             client: createSaleDto.clientId,
@@ -19,15 +18,19 @@ export class SaleRepository {
         });
 
         try {
-            const createdSale = await newSale.save();
-            return createdSale;
+            sale = await sale.save({ session });
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        if (!sale) {
+            throw new BadRequestException('Sale not created');
+        }
+
+        return sale;
     }
 
     async getSales(query: { from: number; limit: number }) {
-        // Paginar resultado
         let from = query.from || 0;
         from = Number(from);
 
@@ -82,31 +85,37 @@ export class SaleRepository {
     }
 
     async getSaleById(id: MongooseSchema.Types.ObjectId) {
+        let sale;
         try {
-            const sale = await this.saleModel
+            sale = await this.saleModel
                 .findById(id)
                 .populate('product')
                 .populate('client')
                 .populate('user', 'name email')
                 .exec();
-
-            if (sale === null) {
-                throw new BadRequestException('Sale does not exist ' + id);
-            }
-
-            return sale;
         } catch (error) {
             throw new BadRequestException(error);
         }
+
+        if (!sale) {
+            throw new NotFoundException('Sale not found');
+        }
+
+        return sale;
     }
 
     async getSaleByProductId(productId: MongooseSchema.Types.ObjectId) {
+        let sale;
         try {
-            const sale = await this.saleModel.find({ product: productId }).exec();
-
-            return sale;
+            sale = await this.saleModel.find({ product: productId }).exec();
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
+
+        if (!sale) {
+            throw new NotFoundException('Sale not found');
+        }
+
+        return sale;
     }
 }

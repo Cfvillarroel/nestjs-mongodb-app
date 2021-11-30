@@ -14,7 +14,7 @@ export class SaleController {
         const session = await this.mongoConnection.startSession();
         session.startTransaction();
         try {
-            const newProduct: any = await this.saleService.createSale(createSaleDto);
+            const newProduct: any = await this.saleService.createSale(createSaleDto, session);
             await session.commitTransaction();
             return res.status(HttpStatus.OK).send(newProduct);
         } catch (error) {
