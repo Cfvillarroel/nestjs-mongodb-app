@@ -1,6 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Schema as MongooseSchema } from 'mongoose';
-
+import { Injectable } from '@nestjs/common';
+import { ClientSession, Schema as MongooseSchema } from 'mongoose';
 import { UserRepository } from '../../repositories/user.repository';
 import { CreateUserDto } from './dto/createUser.dto';
 
@@ -8,17 +7,12 @@ import { CreateUserDto } from './dto/createUser.dto';
 export class UserService {
     constructor(private readonly userRepository: UserRepository) {}
 
-    async createUser(createUserDto: CreateUserDto) {
-        const createdUser = await this.userRepository.createUser(createUserDto);
+    async createUser(createUserDto: CreateUserDto, session: ClientSession) {
+        const createdUser = await this.userRepository.createUser(createUserDto, session);
         return createdUser;
     }
 
     async getUserById(id: MongooseSchema.Types.ObjectId) {
-        const user = await this.userRepository.getUserById(id);
-
-        if (!user) {
-            throw new UnauthorizedException('No existe el usuario!');
-        }
-        return user;
+        return await this.userRepository.getUserById(id);
     }
 }

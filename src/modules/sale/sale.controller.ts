@@ -1,18 +1,28 @@
-import { Body, Controller, Get, HttpStatus, Param, Post, Query, Res } from '@nestjs/common';
-import { Schema as MongooseSchema } from 'mongoose';
-
+import { BadRequestException, Body, Controller, Get, HttpStatus, Param, Post, Query, Res } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection, Schema as MongooseSchema } from 'mongoose';
 import { GetQueryDto } from '../../dto/getQueryDto';
 import { CreateSaleDto } from './dto/createSale.dto';
 import { SaleService } from './sale.service';
 
 @Controller('sale')
 export class SaleController {
-    constructor(private saleService: SaleService) {}
+    constructor(@InjectConnection() private readonly mongoConnection: Connection, private saleService: SaleService) {}
 
     @Post('/createSale')
     async createSale(@Body() createSaleDto: CreateSaleDto, @Res() res: any) {
-        const newProduct: any = await this.saleService.createSale(createSaleDto);
-        return res.status(HttpStatus.OK).send(newProduct);
+        const session = await this.mongoConnection.startSession();
+        session.startTransaction();
+        try {
+            const newProduct: any = await this.saleService.createSale(createSaleDto, session);
+            await session.commitTransaction();
+            return res.status(HttpStatus.OK).send(newProduct);
+        } catch (error) {
+            await session.abortTransaction();
+            throw new BadRequestException(error);
+        } finally {
+            session.endSession();
+        }
     }
 
     @Get('/getSaleById/:id')
