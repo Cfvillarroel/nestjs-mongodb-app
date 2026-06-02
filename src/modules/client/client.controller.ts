@@ -1,23 +1,29 @@
-import { BadRequestException, Body, Controller, Get, HttpStatus, Param, Post, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
-import { Response } from 'express';
-import { Connection, Schema as MongooseSchema } from 'mongoose';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Connection } from 'mongoose';
 import { GetQueryDto } from '../../dto/getQueryDto';
 import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/createClient.dto';
 
+@ApiTags('Clients')
 @Controller('client')
 export class ClientController {
     constructor(@InjectConnection() private readonly mongoConnection: Connection, private clientService: ClientService) {}
 
     @Post('/createClient')
-    async createClient(@Body() createClientDto: CreateClientDto, @Res() res: Response) {
+    @HttpCode(HttpStatus.CREATED)
+    @ApiOperation({ summary: 'Create a new client (requires ADMIN user)' })
+    @ApiResponse({ status: 201, description: 'Client created successfully' })
+    @ApiResponse({ status: 401, description: 'User is not an ADMIN' })
+    @ApiResponse({ status: 409, description: 'Client already exists' })
+    async createClient(@Body() createClientDto: CreateClientDto) {
         const session = await this.mongoConnection.startSession();
         session.startTransaction();
         try {
             const newClient = await this.clientService.createClient(createClientDto, session);
             await session.commitTransaction();
-            return res.status(HttpStatus.CREATED).send(newClient);
+            return newClient;
         } catch (error) {
             await session.abortTransaction();
             throw new BadRequestException(error);
@@ -27,14 +33,17 @@ export class ClientController {
     }
 
     @Get('/getClients')
-    async getClients(@Query() getQueryDto: GetQueryDto, @Res() res: Response) {
-        const clients: any = await this.clientService.getClients(getQueryDto);
-        return res.status(HttpStatus.OK).send(clients);
+    @ApiOperation({ summary: 'Get all clients with optional pagination' })
+    async getClients(@Query() getQueryDto: GetQueryDto) {
+        return await this.clientService.getClients(getQueryDto);
     }
 
     @Get('/getClientById/:id')
-    async getClientById(@Param('id') id: MongooseSchema.Types.ObjectId, @Res() res: Response) {
-        const client: any = await this.clientService.getClientById(id);
-        return res.status(HttpStatus.OK).send(client);
+    @ApiOperation({ summary: 'Get a client by ID' })
+    @ApiParam({ name: 'id', description: 'MongoDB ObjectId' })
+    @ApiResponse({ status: 200, description: 'Client found' })
+    @ApiResponse({ status: 404, description: 'Client not found' })
+    async getClientById(@Param('id') id: string) {
+        return await this.clientService.getClientById(id);
     }
 }

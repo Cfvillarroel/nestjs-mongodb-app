@@ -1,11 +1,12 @@
-import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
-import { User } from '../entities/user.entity';
+import { ClientSession, Model } from 'mongoose';
+import { User, UserDocument } from '../entities/user.entity';
 import { CreateUserDto } from '../modules/user/dto/createUser.dto';
 
+@Injectable()
 export class UserRepository {
-    constructor(@InjectModel(User.name) private readonly userModel: Model<User>) {}
+    constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
 
     async createUser(createUserDto: CreateUserDto, session: ClientSession) {
         let user = await this.getUserByEmail(createUserDto.email);
@@ -33,10 +34,10 @@ export class UserRepository {
         return user;
     }
 
-    async getUserById(id: MongooseSchema.Types.ObjectId) {
+    async getUserById(id: string) {
         let user;
         try {
-            user = await this.userModel.findById({ _id: id });
+            user = await this.userModel.findById(id);
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
@@ -51,7 +52,7 @@ export class UserRepository {
     async getUserByEmail(email: string) {
         let user;
         try {
-            user = await this.userModel.findOne({ email }, 'name email img role').exec();
+            user = await this.userModel.findOne({ email }, 'name email role').exec();
         } catch (error) {
             throw new InternalServerErrorException(error);
         }

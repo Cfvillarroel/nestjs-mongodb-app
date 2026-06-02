@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ClientSession, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession } from 'mongoose';
 import { GetQueryDto } from 'src/dto/getQueryDto';
 import { ProductRepository } from '../../repositories/product.repository';
 import { CreateProductDto } from './dto/createProduct.dto';
@@ -13,7 +13,7 @@ export class ProductService {
         return await this.productRepository.createProduct(createProductDto, session);
     }
 
-    async getProductById(productId: MongooseSchema.Types.ObjectId) {
+    async getProductById(productId: string) {
         return await this.productRepository.getProductById(productId);
     }
 

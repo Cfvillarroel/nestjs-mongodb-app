@@ -1,12 +1,16 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { CreateSaleDto } from './createSale.dto';
 
 export class UpdateSaleDto extends PartialType(CreateSaleDto) {
+    @ApiProperty({ example: 50.00, description: 'Amount paid' })
+    @IsNumber()
     @IsNotEmpty()
     payedAmount: number;
 
+    @ApiPropertyOptional({ example: 'Partial payment' })
     @IsOptional()
-    observation: string;
+    @IsString()
+    observation?: string;
 }
