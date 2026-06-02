@@ -1,13 +1,21 @@
-import { IsOptional } from 'class-validator';
-import { Schema as MongooseSchema } from 'mongoose';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class GetSalesDto {
+    @ApiPropertyOptional()
     @IsOptional()
-    id: MongooseSchema.Types.ObjectId
+    @IsString()
+    id?: string;
 
+    @ApiPropertyOptional({ example: 0 })
     @IsOptional()
-    from: number
+    @Type(() => Number)
+    from?: number;
 
+    @ApiPropertyOptional({ example: 10 })
     @IsOptional()
-    limit: number
+    @IsPositive()
+    @Type(() => Number)
+    limit?: number;
 }

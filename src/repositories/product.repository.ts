@@ -1,13 +1,15 @@
-import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { GetQueryDto } from '../dto/getQueryDto';
-import { Product } from '../entities/product.entity';
+import { ResponseDto } from '../dto/response.dto';
+import { Product, ProductDocument } from '../entities/product.entity';
 import { CreateProductDto } from '../modules/product/dto/createProduct.dto';
 import { UpdateProductDto } from '../modules/product/dto/updateProduct.dto';
 
+@Injectable()
 export class ProductRepository {
-    constructor(@InjectModel(Product.name) private readonly productModel: Model<Product>) {}
+    constructor(@InjectModel(Product.name) private readonly productModel: Model<ProductDocument>) {}
 
     async createProduct(createProductDto: CreateProductDto, session: ClientSession) {
         let product = new this.productModel({
@@ -26,21 +28,15 @@ export class ProductRepository {
     }
 
     async updateProduct(updateProduct: UpdateProductDto, session: ClientSession) {
-        const actualDate = new Date();
-        actualDate.toUTCString();
-
         const updateData = {
             status: updateProduct.status,
             client: updateProduct.clientId,
-            updatedAt: actualDate,
         };
 
         let product;
         try {
             product = await this.productModel
-                .findOneAndUpdate({ _id: updateProduct.id }, updateData, {
-                    new: true,
-                })
+                .findOneAndUpdate({ _id: updateProduct.id }, updateData, { new: true })
                 .session(session)
                 .exec();
         } catch (error) {
@@ -48,7 +44,22 @@ export class ProductRepository {
         }
 
         if (!product) {
-            throw new ConflictException('Error trying to update product');
+            throw new NotFoundException('Product not found');
+        }
+
+        return product;
+    }
+
+    async getProductById(productId: string) {
+        let product;
+        try {
+            product = await this.productModel.findById(productId).exec();
+        } catch (error) {
+            throw new InternalServerErrorException(error);
+        }
+
+        if (!product) {
+            throw new NotFoundException('Product not found');
         }
 
         return product;
@@ -61,61 +72,25 @@ export class ProductRepository {
         let limit = query.limit || 0;
         limit = Number(limit);
 
-        let products: Product[];
+        let products: ProductDocument[];
 
         try {
-            if (limit === 0) {
-                products = await this.productModel
-                    .find()
-                    .populate('client')
-                    .populate('user', 'name email')
-                    .skip(from)
-                    .sort({ createdAt: -1 })
-                    .exec();
-            } else {
-                products = await this.productModel
-                    .find()
-                    .populate('client')
-                    .populate('user', 'name email')
-                    .skip(from)
-                    .limit(limit)
-                    .sort({ createdAt: -1 })
-                    .exec();
+            const queryBuilder = this.productModel.find().populate('user').populate('client').skip(from).sort({ createdAt: -1 });
+
+            if (limit > 0) {
+                queryBuilder.limit(limit);
             }
 
-            let response;
+            products = await queryBuilder.exec();
 
-            if (products.length > 0) {
-                response = {
-                    ok: true,
-                    data: products,
-                    message: 'Get Products Ok!',
-                };
-            } else {
-                response = {
-                    ok: true,
-                    data: [],
-                    message: 'No hay products',
-                };
-            }
+            const response: ResponseDto = {
+                ok: true,
+                data: products,
+                message: products.length > 0 ? 'Get Products Ok!' : 'No products found',
+            };
             return response;
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
-    }
-
-    async getProductById(id: MongooseSchema.Types.ObjectId) {
-        let product;
-        try {
-            product = await this.productModel.findById(id).exec();
-        } catch (error) {
-            throw new InternalServerErrorException(error);
-        }
-
-        if (!product) {
-            throw new NotFoundException('The product with this id does not exist');
-        }
-
-        return product;
     }
 }

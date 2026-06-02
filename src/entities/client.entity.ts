@@ -1,23 +1,23 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { ApiProperty } from '@nestjs/swagger';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
 import { User } from './user.entity';
 
-@Schema()
-export class Client extends Document {
-    @Prop({ required: true, unique: true, message: 'Name must be unique' })
+export type ClientDocument = HydratedDocument<Client>;
+
+@Schema({ timestamps: true })
+export class Client {
+    @ApiProperty({ example: 'Acme Corp' })
+    @Prop({ required: true })
     name: string;
 
+    @ApiProperty({ example: '+56912345678' })
     @Prop({ required: true })
     contactNumber: string;
 
-    @Prop({ default: Date.now })
-    updatedAt: Date;
-
-    @Prop({ default: Date.now })
-    createdAt: Date;
-
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: User.name })
+    @ApiProperty({ description: 'User ID who created this client' })
+    @Prop({ type: MongooseSchema.Types.ObjectId, required: true, ref: User.name })
     user: MongooseSchema.Types.ObjectId;
 }
 

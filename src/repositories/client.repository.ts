@@ -1,25 +1,26 @@
-import { ConflictException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { GetQueryDto } from '../dto/getQueryDto';
 import { ResponseDto } from '../dto/response.dto';
-import { Client } from '../entities/client.entity';
+import { Client, ClientDocument } from '../entities/client.entity';
 import { CreateClientDto } from '../modules/client/dto/createClient.dto';
 
+@Injectable()
 export class ClientRepository {
     constructor(
         @InjectModel(Client.name)
-        private readonly clientModel: Model<Client>,
+        private readonly clientModel: Model<ClientDocument>,
     ) {}
 
     async createClient(createClientDto: CreateClientDto, session: ClientSession) {
-        let client = await this.getClientByName(createClientDto.name);
+        const existing = await this.getClientByName(createClientDto.name);
 
-        if (client) {
+        if (existing && existing.length > 0) {
             throw new ConflictException('Client Already Exists!');
         }
 
-        client = new this.clientModel({
+        let client = new this.clientModel({
             name: createClientDto.name,
             contactNumber: createClientDto.contactNumber,
             user: createClientDto.userId,
@@ -28,7 +29,7 @@ export class ClientRepository {
         try {
             client = await client.save({ session });
         } catch (error) {
-            throw new InternalServerErrorException('Error al consultar la BD', error);
+            throw new InternalServerErrorException('Error saving client', error);
         }
 
         return client;
@@ -41,53 +42,34 @@ export class ClientRepository {
         let limit = query.limit || 0;
         limit = Number(limit);
 
-        let clients: Client[];
+        let clients: ClientDocument[];
 
         try {
-            if (limit === 0) {
-                clients = await this.clientModel
-                    .find()
-                    .populate('client')
-                    .skip(from)
-                    .sort({ createdAt: -1 })
-                    .exec();
-            } else {
-                clients = await this.clientModel
-                    .find()
-                    .populate('client')
-                    .skip(from)
-                    .limit(limit)
-                    .sort({ createdAt: -1 })
-                    .exec();
+            const queryBuilder = this.clientModel.find().populate('user').skip(from).sort({ createdAt: -1 });
+
+            if (limit > 0) {
+                queryBuilder.limit(limit);
             }
 
-            let response: ResponseDto;
+            clients = await queryBuilder.exec();
 
-            if (clients.length > 0) {
-                response = {
-                    ok: true,
-                    data: clients,
-                    message: 'Get Clients Ok!',
-                };
-            } else {
-                response = {
-                    ok: true,
-                    data: [],
-                    message: 'No hay clientes',
-                };
-            }
+            const response: ResponseDto = {
+                ok: true,
+                data: clients,
+                message: clients.length > 0 ? 'Get Clients Ok!' : 'No clients found',
+            };
             return response;
         } catch (error) {
-            throw new InternalServerErrorException('Error al intentar consultar los clientes', error);
+            throw new InternalServerErrorException('Error fetching clients', error);
         }
     }
 
-    async getClientById(id: MongooseSchema.Types.ObjectId) {
+    async getClientById(id: string) {
         let client;
         try {
             client = await this.clientModel.findById(id).exec();
         } catch (error) {
-            throw new InternalServerErrorException('No existe el registro con id' + id, error);
+            throw new InternalServerErrorException('Error fetching client with id ' + id, error);
         }
 
         if (!client) {
@@ -97,15 +79,11 @@ export class ClientRepository {
         return client;
     }
 
-    async getClientByName(name: string): Promise<Client> {
-        let client;
-
+    async getClientByName(name: string) {
         try {
-            client = await this.clientModel.find({ name });
+            return await this.clientModel.find({ name });
         } catch (error) {
             throw new InternalServerErrorException('Error connecting to MongoDB', error);
         }
-
-        return client;
     }
 }

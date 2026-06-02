@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ClientSession, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession } from 'mongoose';
 import { SaleRepository } from '../../repositories/sale.repository';
 import { UpdateProductDto } from '../product/dto/updateProduct.dto';
 import { ProductService } from '../product/product.service';
@@ -20,10 +20,11 @@ export class SaleService {
         }
 
         const product = await this.productService.getProductById(productId);
-        const createdSale = await this.saleRepository.createSale(createSaleDto, product, userId, session);
+
+        const createdSale = await this.saleRepository.createSale(createSaleDto, product as any, userId, session);
 
         const updateProductDto: UpdateProductDto = {
-            id: product._id,
+            id: (product as any)._id.toString(),
             status: 'SOLD',
             clientId: clientId,
         };
@@ -32,7 +33,7 @@ export class SaleService {
         return createdSale;
     }
 
-    async getSaleById(saleId: MongooseSchema.Types.ObjectId) {
+    async getSaleById(saleId: string) {
         return await this.saleRepository.getSaleById(saleId);
     }
 

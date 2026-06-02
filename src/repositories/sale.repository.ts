@@ -1,14 +1,15 @@
-import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { Product } from '../entities/product.entity';
-import { Sale } from '../entities/sale.entity';
+import { Sale, SaleDocument } from '../entities/sale.entity';
 import { CreateSaleDto } from '../modules/sale/dto/createSale.dto';
 
+@Injectable()
 export class SaleRepository {
-    constructor(@InjectModel(Sale.name) private readonly saleModel: Model<Sale>) {}
+    constructor(@InjectModel(Sale.name) private readonly saleModel: Model<SaleDocument>) {}
 
-    async createSale(createSaleDto: CreateSaleDto, product: Product, userId: MongooseSchema.Types.ObjectId, session: ClientSession) {
+    async createSale(createSaleDto: CreateSaleDto, product: Product & { _id: any }, userId: string, session: ClientSession) {
         let sale = new this.saleModel({
             user: userId,
             product: product._id,
@@ -37,62 +38,31 @@ export class SaleRepository {
         let limit = query.limit || 0;
         limit = Number(limit);
 
-        let sales: Sale[];
+        let sales: SaleDocument[];
 
         try {
-            if (limit === 0) {
-                sales = await this.saleModel
-                    .find()
-                    .populate('sale')
-                    .populate('product')
-                    .populate('client')
-                    .populate('user', 'name email')
-                    .skip(from)
-                    .sort({ createdAt: -1 })
-                    .exec();
-            } else {
-                sales = await this.saleModel
-                    .find()
-                    .populate('sale')
-                    .populate('product')
-                    .populate('client')
-                    .populate('user', 'name email')
-                    .skip(from)
-                    .limit(limit)
-                    .sort({ createdAt: -1 })
-                    .exec();
+            const queryBuilder = this.saleModel.find().populate('product').populate('client').populate('user', 'name email').skip(from).sort({ createdAt: -1 });
+
+            if (limit > 0) {
+                queryBuilder.limit(limit);
             }
 
-            let response;
+            sales = await queryBuilder.exec();
 
-            if (sales.length > 0) {
-                response = {
-                    ok: true,
-                    data: sales,
-                    message: 'Get Sales Ok!',
-                };
-            } else {
-                response = {
-                    ok: true,
-                    data: [],
-                    message: 'No hay sales',
-                };
-            }
-            return response;
+            return {
+                ok: true,
+                data: sales,
+                message: sales.length > 0 ? 'Get Sales Ok!' : 'No sales found',
+            };
         } catch (error) {
             throw new InternalServerErrorException(error);
         }
     }
 
-    async getSaleById(id: MongooseSchema.Types.ObjectId) {
+    async getSaleById(id: string) {
         let sale;
         try {
-            sale = await this.saleModel
-                .findById(id)
-                .populate('product')
-                .populate('client')
-                .populate('user', 'name email')
-                .exec();
+            sale = await this.saleModel.findById(id).populate('product').populate('client').populate('user', 'name email').exec();
         } catch (error) {
             throw new BadRequestException(error);
         }
@@ -104,7 +74,7 @@ export class SaleRepository {
         return sale;
     }
 
-    async getSaleByProductId(productId: MongooseSchema.Types.ObjectId) {
+    async getSaleByProductId(productId: string) {
         let sale;
         try {
             sale = await this.saleModel.find({ product: productId }).exec();

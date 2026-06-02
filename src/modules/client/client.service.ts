@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ClientSession, Schema as MongooseSchema } from 'mongoose';
+import { ClientSession } from 'mongoose';
 import { GetQueryDto } from '../../dto/getQueryDto';
 import { ClientRepository } from '../../repositories/client.repository';
 import { UserService } from '../user/user.service';
@@ -23,7 +23,7 @@ export class ClientService {
         return await this.clientRepository.getClients(getQueryDto);
     }
 
-    async getClientById(id: MongooseSchema.Types.ObjectId) {
+    async getClientById(id: string) {
         return await this.clientRepository.getClientById(id);
     }
 }
