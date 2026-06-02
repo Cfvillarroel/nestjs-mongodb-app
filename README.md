@@ -1,3 +1,4 @@
+```markdown
 # NestJS MongoDB App
 
 [![CI](https://github.com/Cfvillarroel/nestjs-mongodb-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Cfvillarroel/nestjs-mongodb-app/actions/workflows/ci.yml)
@@ -154,3 +155,4 @@ npm run test:e2e
 ## License
 
 This project is [MIT licensed](LICENSE).
+```
